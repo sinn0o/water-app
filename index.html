@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>물 한 잔 카운터</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1c7bc4">
+<!-- 아이폰(iOS): 홈 화면 아이콘 + 주소창 없는 standalone 실행 -->
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="물한잔">
+<style>
+  :root{
+    --blue-deep:#1c7bc4;
+    --blue-mid:#2f9ce0;
+    --blue-light:#eaf6ff;
+    --page-bg:#dcecf5;
+    --ink:#1c3d52;
+    --muted:#6ba3c9;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:var(--page-bg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif;
+    -webkit-tap-highlight-color:transparent;
+    padding:24px 16px;
+  }
+
+  @keyframes pop{
+    0%{transform:scale(.9);opacity:0}
+    60%{transform:scale(1.03);opacity:1}
+    100%{transform:scale(1)}
+  }
+  @keyframes bump{
+    0%{transform:scale(1)}
+    40%{transform:scale(1.12)}
+    100%{transform:scale(1)}
+  }
+  @keyframes fadeIn{
+    from{opacity:0}
+    to{opacity:1}
+  }
+
+  .card{
+    width:100%;
+    max-width:400px;
+    background:linear-gradient(180deg,var(--blue-light) 0%,#ffffff 100%);
+    border-radius:28px;
+    box-shadow:0 20px 50px rgba(20,60,100,.15);
+    padding:36px 24px 32px;
+    position:relative;
+    overflow:hidden;
+    text-align:center;
+  }
+
+  .label{
+    font-size:15px;
+    font-weight:600;
+    color:var(--muted);
+    letter-spacing:.2px;
+  }
+
+  .count-row{
+    display:flex;
+    align-items:baseline;
+    justify-content:center;
+    gap:4px;
+    margin-top:8px;
+    transition:transform .25s ease;
+  }
+  .count-row.bump{
+    animation:bump .35s ease;
+  }
+  .count-num{
+    font-size:72px;
+    font-weight:800;
+    line-height:1;
+    color:var(--blue-deep);
+  }
+  .count-unit{
+    font-size:26px;
+    font-weight:700;
+    color:var(--blue-deep);
+  }
+  .count-total{
+    font-size:16px;
+    font-weight:600;
+    color:var(--muted);
+    margin-top:2px;
+  }
+
+  .status{
+    margin-top:10px;
+    font-size:15px;
+    font-weight:600;
+    color:#3b7ba8;
+    min-height:20px;
+  }
+
+  .cups-row{
+    display:flex;
+    gap:6px;
+    justify-content:center;
+    margin-top:26px;
+  }
+  .cup{
+    flex:1;
+    min-width:0;
+    max-width:38px;
+    aspect-ratio:5/7;
+    border-radius:6px 6px 10px 10px;
+    border:2px solid #cfe4f2;
+    background:#f3faff;
+    position:relative;
+    overflow:hidden;
+    transition:border-color .3s ease, background .3s ease;
+  }
+  .cup-fill{
+    position:absolute;
+    left:0;right:0;bottom:0;
+    height:0%;
+    background:linear-gradient(180deg,#5cc4ff,var(--blue-mid));
+    transition:height .4s cubic-bezier(.34,1.2,.64,1);
+  }
+  .cup.filled{
+    border-color:var(--blue-mid);
+  }
+  .cup.filled .cup-fill{
+    height:100%;
+  }
+
+  .actions{
+    margin-top:30px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:14px;
+  }
+  .btn-drink{
+    width:100%;
+    border:none;
+    cursor:pointer;
+    padding:18px;
+    border-radius:18px;
+    background:linear-gradient(180deg,#3fb2ff,var(--blue-deep));
+    color:#fff;
+    font-size:18px;
+    font-weight:700;
+    letter-spacing:.2px;
+    box-shadow:0 10px 22px rgba(28,124,196,.35);
+  }
+  .btn-drink:active{
+    transform:scale(.98);
+  }
+  .btn-drink:disabled{
+    opacity:.5;
+    cursor:default;
+    box-shadow:none;
+  }
+  .btn-drink:disabled:active{
+    transform:none;
+  }
+  .reset-link{
+    background:none;
+    border:none;
+    cursor:pointer;
+    font-size:13px;
+    font-weight:600;
+    color:var(--muted);
+    text-decoration:underline;
+    padding:4px;
+  }
+  .reset-link:active{
+    opacity:.6;
+  }
+
+  .celebration{
+    position:absolute;
+    inset:0;
+    background:rgba(255,255,255,.97);
+    display:none;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    padding:0 24px;
+    text-align:center;
+    animation:fadeIn .25s ease;
+  }
+  .celebration.show{
+    display:flex;
+  }
+  .celebration-badge{
+    width:64px;
+    height:64px;
+    border-radius:50%;
+    background:linear-gradient(180deg,#3fb2ff,var(--blue-deep));
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:26px;
+    font-weight:800;
+    box-shadow:0 10px 24px rgba(28,124,196,.35);
+    animation:pop .5s cubic-bezier(.34,1.56,.64,1);
+  }
+  .celebration-title{
+    font-size:22px;
+    font-weight:800;
+    color:var(--ink);
+    margin-top:6px;
+  }
+  .celebration-desc{
+    font-size:14px;
+    font-weight:600;
+    color:var(--muted);
+    line-height:1.5;
+  }
+  .celebration-close{
+    margin-top:8px;
+    border:none;
+    cursor:pointer;
+    padding:12px 32px;
+    border-radius:16px;
+    background:var(--blue-deep);
+    color:#fff;
+    font-size:15px;
+    font-weight:700;
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="label">오늘 마신 물</div>
+  <div class="count-row" id="countRow">
+    <span class="count-num" id="countNum">0</span>
+    <span class="count-unit">잔</span>
+  </div>
+  <div class="count-total">/ 8잔</div>
+  <div class="status" id="status">지금 한 잔 마셔볼까요?</div>
+
+  <div class="cups-row" id="cupsRow"></div>
+
+  <div class="actions">
+    <button class="btn-drink" id="drinkBtn">물 한 잔 마셨어요</button>
+    <button class="reset-link" id="resetBtn">오늘 기록 지우기</button>
+  </div>
+
+  <div class="celebration" id="celebration">
+    <div class="celebration-badge">8/8</div>
+    <div class="celebration-title">오늘 목표 달성!</div>
+    <div class="celebration-desc">물 8잔을 모두 마셨어요.<br>내일도 잊지 말고 마셔요!</div>
+    <button class="celebration-close" id="closeCelebrationBtn">확인</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  var GOAL = 8;
+  var STORAGE_KEY = 'water-counter-state';
+
+  function todayStr() {
+    var d = new Date();
+    return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+  }
+
+  function loadCount() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return 0;
+      var data = JSON.parse(raw);
+      if (data.date !== todayStr()) return 0;
+      return Math.min(GOAL, Math.max(0, data.count | 0));
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  function saveCount(count) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ date: todayStr(), count: count }));
+    } catch (e) { /* storage unavailable, ignore */ }
+  }
+
+  var count = loadCount();
+
+  var countNumEl = document.getElementById('countNum');
+  var countRowEl = document.getElementById('countRow');
+  var statusEl = document.getElementById('status');
+  var cupsRowEl = document.getElementById('cupsRow');
+  var drinkBtn = document.getElementById('drinkBtn');
+  var resetBtn = document.getElementById('resetBtn');
+  var celebrationEl = document.getElementById('celebration');
+  var closeCelebrationBtn = document.getElementById('closeCelebrationBtn');
+
+  var cupEls = [];
+  for (var i = 0; i < GOAL; i++) {
+    var cup = document.createElement('div');
+    cup.className = 'cup';
+    var fill = document.createElement('div');
+    fill.className = 'cup-fill';
+    cup.appendChild(fill);
+    cupsRowEl.appendChild(cup);
+    cupEls.push(cup);
+  }
+
+  function render(bump) {
+    countNumEl.textContent = count;
+
+    countRowEl.classList.remove('bump');
+    if (bump) {
+      void countRowEl.offsetWidth; // restart animation
+      countRowEl.classList.add('bump');
+    }
+
+    for (var i = 0; i < GOAL; i++) {
+      cupEls[i].classList.toggle('filled', i < count);
+    }
+
+    var statusMessage;
+    if (count === 0) statusMessage = '지금 한 잔 마셔볼까요?';
+    else if (count < GOAL) statusMessage = (GOAL - count) + '잔 더 마시면 목표 달성!';
+    else statusMessage = '오늘 목표를 모두 채웠어요!';
+    statusEl.textContent = statusMessage;
+
+    drinkBtn.disabled = count >= GOAL;
+  }
+
+  function drink() {
+    if (count >= GOAL) return;
+    count += 1;
+    saveCount(count);
+    render(true);
+    if (count === GOAL) {
+      celebrationEl.classList.add('show');
+    }
+  }
+
+  function reset() {
+    count = 0;
+    saveCount(count);
+    celebrationEl.classList.remove('show');
+    render(false);
+  }
+
+  function closeCelebration() {
+    celebrationEl.classList.remove('show');
+  }
+
+  drinkBtn.addEventListener('click', drink);
+  resetBtn.addEventListener('click', reset);
+  closeCelebrationBtn.addEventListener('click', closeCelebration);
+
+  render(false);
+})();
+</script>
+
+<script>
+  // 서비스 워커 등록: 등록되면 index.html/manifest/아이콘이 캐시되어
+  // 오프라인에서도 앱이 열린다.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function (err) {
+        console.warn('서비스 워커 등록 실패:', err);
+      });
+    });
+  }
+</script>
+
+</body>
+</html>
